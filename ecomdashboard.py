@@ -34,7 +34,7 @@ df = df[df["amount"] > 0]
 # Streamlit Page Config
 # -----------------------------------------------------
 st.set_page_config(page_title="E-Commerce Sales Dashboard", layout="wide")
-st.title("📦 E-Commerce Sales Dashboard")
+st.title("📦 E-Commerce Sales Analysis")
 
 # -----------------------------------------------------
 # Sidebar Filters
