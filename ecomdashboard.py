@@ -141,6 +141,9 @@ with st.sidebar.expander("Data Filters", expanded=True):
         min_value=int(profit_min),
         max_value=int(profit_max),
         value=(int(profit_min), int(profit_max))
+    ),
+        max_value=int(profit_max),
+        value=(int(profit_min), int(profit_max))
     ))
 
 # -----------------------------
