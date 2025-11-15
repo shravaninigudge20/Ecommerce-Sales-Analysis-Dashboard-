@@ -44,53 +44,48 @@ div[data-testid="metric-container"] > div {
     font-weight: 700 !important;
 }
 
-/* CHART BLOCKS */
+/* CHART BOXES */
 .block-container {
     padding-top: 1rem;
 }
 
-.css-1kyxreq, .css-1ws7g6d, .css-12w0qpk {
-    background: #ffffff !important;
-    padding: 20px !important;
-    border-radius: 15px;
-    border: 1px solid #e4e4e4;
-    box-shadow: 0px 3px 10px rgba(0,0,0,0.08);
-}
-
-/* BUTTONS */
-.stButton > button {
-    background: #1976d2;
-    color: white;
-    border-radius: 8px;
-    padding: 10px 22px;
-    font-weight: 600;
-    border: none;
-}
-
-.stButton > button:hover {
-    background: #145a96;
-    box-shadow: 0px 4px 10px rgba(0,0,0,0.15);
-}
-
-/* HIDE FOOTER */
 footer {visibility:hidden;}
 </style>
 """
-
 st.markdown(light_theme_css, unsafe_allow_html=True)
 
 
 # ==============================================
-# LOAD DATA
+# LOAD DATA FROM GOOGLE SHEETS
 # ==============================================
 @st.cache_data
 def load_data():
-    csv_url = "https://docs.google.com/spreadsheets/d/1-CPu7c-5FD4_XyPEY6gPVRYOfPj1_d5S/export?format=csv"
-    return pd.read_csv(csv_url)
+    url = "https://docs.google.com/spreadsheets/d/1-CPu7c-5FD4_XyPEY6gPVRYOfPj1_d5S/export?format=csv"
+    df = pd.read_csv(url, low_memory=False)
+    df.columns = df.columns.str.lower().str.strip()
+
+    # Fix date
+    if "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+
+    # Convert numeric fields
+    for col in ["amount", "recived amount", "expance", "qty"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+
+    # Create profit column
+    if "profit" not in df.columns:
+        df["profit"] = df["amount"] - df["expance"]
+
+    return df
 
 df = load_data()
 
-st.title("📊 Ecommerce Sales Dashboard (Light Theme)")
+
+# ==============================================
+# PAGE TITLE
+# ==============================================
+st.title("📊 E-Commerce Sales Dashboard (Light Theme)")
 
 
 # ==============================================
@@ -98,77 +93,49 @@ st.title("📊 Ecommerce Sales Dashboard (Light Theme)")
 # ==============================================
 st.sidebar.header("🔎 Filters")
 
-categories = st.sidebar.multiselect(
-    "Select Category",
-    options=df["Category"].unique(),
-    default=df["Category"].unique()
-)
+category_list = sorted(df["category"].dropna().unique())
+state_list = sorted(df["ship-state"].dropna().unique())
 
-states = st.sidebar.multiselect(
-    "Select State",
-    options=df["State"].unique(),
-    default=df["State"].unique()
-)
+selected_categories = st.sidebar.multiselect("Select Category", category_list, default=category_list)
+selected_states = st.sidebar.multiselect("Select Ship State", state_list, default=state_list)
 
-df_filtered = df[df["Category"].isin(categories) & df["State"].isin(states)]
+# Apply filters
+df_filtered = df[
+    (df["category"].isin(selected_categories)) &
+    (df["ship-state"].isin(selected_states))
+]
 
 
 # ==============================================
-# KPI METRICS
+# KPIs
 # ==============================================
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 
-col1.metric("Total Sales", f"${int(df_filtered['Amount'].sum()):,}")
+col1.metric("Total Revenue", f"₹{df_filtered['amount'].sum():,.0f}")
 col2.metric("Total Orders", f"{df_filtered.shape[0]:,}")
-col3.metric("Avg Order Value", f"${df_filtered['Amount'].mean():.2f}")
+col3.metric("Total Profit", f"₹{df_filtered['profit'].sum():,.0f}")
+col4.metric("Average Order Value", f"₹{df_filtered['amount'].mean():,.0f}")
 
 
 # ==============================================
 # SALES BY CATEGORY
 # ==============================================
 st.subheader("📦 Sales by Category")
-category_sales = df_filtered.groupby("Category")["Amount"].sum().reset_index()
+
+cat_sales = df_filtered.groupby("category")["amount"].sum().reset_index()
 
 fig1 = px.bar(
-    category_sales, x="Category", y="Amount",
-    title="", 
-    labels={"Amount": "Sales Amount"},
+    cat_sales,
+    x="category",
+    y="amount",
+    title="",
+    color="amount",
+    color_continuous_scale="Blues"
 )
-
 st.plotly_chart(fig1, use_container_width=True)
 
 
 # ==============================================
 # SALES BY STATE
 # ==============================================
-st.subheader("📍 Sales by State")
-state_sales = df_filtered.groupby("State")["Amount"].sum().reset_index()
-
-fig2 = px.choropleth(
-    state_sales,
-    locationmode="USA-states",
-    locations="State",
-    color="Amount",
-    scope="usa",
-    title=""
-)
-
-st.plotly_chart(fig2, use_container_width=True)
-
-
-# ==============================================
-# MONTHLY SALES TREND
-# ==============================================
-st.subheader("📅 Monthly Sales Trend")
-
-df["Order Date"] = pd.to_datetime(df["Order Date"])
-df["Month"] = df["Order Date"].dt.to_period("M").astype(str)
-
-monthly_sales = df_filtered.groupby("Month")["Amount"].sum().reset_index()
-
-fig3 = px.line(
-    monthly_sales, x="Month", y="Amount",
-    markers=True
-)
-
-st.plotly_chart(fig3, use_container_width=True)
+st.subheader("📍 Sales by Ship-State")
