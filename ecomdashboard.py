@@ -71,8 +71,9 @@ def preprocess(df: pd.DataFrame) -> pd.DataFrame:
 
     # Basic cleanups
     # Strip string columns to avoid hidden whitespace
-    for c in df.select_dtypes(include=['object']).columns:
-        df[c] = df[c].str.strip()
+    for c in df.columns:
+        if df[c].dtype == "object":
+            df[c] = df[c].astype(str).fillna("").str.strip()
 
     # Remove obviously invalid rows (no amount, missing order id optional)
     if 'amount' in df.columns:
@@ -220,7 +221,7 @@ if page == "Overview":
     st.markdown("---")
     if 'category' in dff.columns:
         top_categories = dff.groupby('category', as_index=False)['amount'].sum().sort_values('amount', ascending=False).head(10)
-        fig_cat = px.bar(top_categories, x='category', y='amount', title='🏷️ Top Categories by Sales', template='plotly_white')
+        fig_cat = px.pie(top_categories, names='category', values='amount', title='🏷️ Top Categories by Sales (Pie Chart)')
         st.plotly_chart(fig_cat, use_container_width=True)
 
     # Quick insights box
