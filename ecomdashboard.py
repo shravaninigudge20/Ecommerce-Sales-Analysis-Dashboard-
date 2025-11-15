@@ -124,4 +124,50 @@ col3.metric("Avg Order Value", f"${df_filtered['Amount'].mean():.2f}")
 
 # ==============================================
 # SALES BY CATEGORY
-# ============================================
+# ==============================================
+st.subheader("📦 Sales by Category")
+category_sales = df_filtered.groupby("Category")["Amount"].sum().reset_index()
+
+fig1 = px.bar(
+    category_sales, x="Category", y="Amount",
+    title="", 
+    labels={"Amount": "Sales Amount"},
+)
+
+st.plotly_chart(fig1, use_container_width=True)
+
+
+# ==============================================
+# SALES BY STATE
+# ==============================================
+st.subheader("📍 Sales by State")
+state_sales = df_filtered.groupby("State")["Amount"].sum().reset_index()
+
+fig2 = px.choropleth(
+    state_sales,
+    locationmode="USA-states",
+    locations="State",
+    color="Amount",
+    scope="usa",
+    title=""
+)
+
+st.plotly_chart(fig2, use_container_width=True)
+
+
+# ==============================================
+# MONTHLY SALES TREND
+# ==============================================
+st.subheader("📅 Monthly Sales Trend")
+
+df["Order Date"] = pd.to_datetime(df["Order Date"])
+df["Month"] = df["Order Date"].dt.to_period("M").astype(str)
+
+monthly_sales = df_filtered.groupby("Month")["Amount"].sum().reset_index()
+
+fig3 = px.line(
+    monthly_sales, x="Month", y="Amount",
+    markers=True
+)
+
+st.plotly_chart(fig3, use_container_width=True)
