@@ -132,7 +132,16 @@ with st.sidebar.expander("Data Filters", expanded=True):
 
     profit_min = int(df['profit'].min()) if not df['profit'].isna().all() else 0
     profit_max = int(df['profit'].max()) if not df['profit'].isna().all() else 0
-    profit_range = st.slider("Profit range", profit_min, profit_max, (profit_min, profit_max))
+    # Profit range safety
+    if profit_min > profit_max:
+        profit_min, profit_max = 0, 0
+
+    profit_range = st.slider(
+        "Profit range",
+        min_value=int(profit_min),
+        max_value=int(profit_max),
+        value=(int(profit_min), int(profit_max))
+    ))
 
 # -----------------------------
 # Filter dataframe centrally
