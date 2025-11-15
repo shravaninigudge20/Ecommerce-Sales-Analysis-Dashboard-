@@ -85,7 +85,8 @@ st.markdown(light_theme_css, unsafe_allow_html=True)
 # ==============================================
 @st.cache_data
 def load_data():
-    return pd.read_csv("Ecommerce_Sales_Cleaned_Final.csv", low_memory=False)
+    csv_url = "https://docs.google.com/spreadsheets/d/1-CPu7c-5FD4_XyPEY6gPVRYOfPj1_d5S/export?format=csv"
+    return pd.read_csv(csv_url)
 
 df = load_data()
 
