@@ -1,188 +1,127 @@
-import pandas as pd
 import streamlit as st
+import pandas as pd
 import plotly.express as px
 
-# -----------------------------------------------------
-# Load Dataset from Google Sheets CSV
-# -----------------------------------------------------
-csv_url = "https://docs.google.com/spreadsheets/d/1-CPu7c-5FD4_XyPEY6gPVRYOfPj1_d5S/export?format=csv"
-df = pd.read_csv(csv_url, low_memory=False)
-
-# Clean columns
-df.columns = df.columns.str.strip().str.lower()
-
-# Convert date
-if "date" in df.columns:
-    df["date"] = pd.to_datetime(df["date"], errors="coerce")
-
-# Ensure numeric columns
-for col in ["amount", "recived amount", "expance", "qty"]:
-    if col in df.columns:
-        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
-
-# Add profit column
-if "profit" not in df.columns:
-    df["profit"] = df["amount"] - df["expance"]
-
-# Filter for valid sales
-df = df[df["amount"] > 0]
-
-# -----------------------------------------------------
-# Streamlit Page Config
-# -----------------------------------------------------
-st.set_page_config(page_title="E-Commerce Sales Dashboard", layout="wide")
-
-# -----------------------------------------------------
-# ADD COLORS (NO POSITION CHANGES)
-# -----------------------------------------------------
-st.markdown("""
+# ==============================================
+# 🌟 LIGHT THEME CSS (Modern & Clean)
+# ==============================================
+light_theme_css = """
 <style>
-
-body {
-    background-color: #f0f2f6;
+/* GLOBAL BACKGROUND */
+.stApp {
+    background: linear-gradient(135deg, #ffffff, #f3f6fb);
+    font-family: 'Segoe UI', sans-serif;
 }
 
-/* Title Styling */
-h1 {
-    color: #1f4e79;
+/* SIDEBAR */
+section[data-testid="stSidebar"] {
+    background-color: #ffffff !important;
+    border-right: 1px solid #e8e8e8;
 }
 
-/* KPI Cards */
+section[data-testid="stSidebar"] h1,
+section[data-testid="stSidebar"] h2,
+section[data-testid="stSidebar"] h3 {
+    color: #2b3a4b !important;
+}
+
+/* KPI CARDS */
 div[data-testid="metric-container"] {
     background: #ffffff;
-    border-radius: 12px;
-    padding: 18px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-div[data-testid="metric-container"] > label {
-    color: #555 !important;
-}
-div[data-testid="metric-container"] > div {
-    color: #1f4e79 !important;
-}
-
-/* Sidebar Style */
-section[data-testid="stSidebar"] {
-    background-color: #1f2937 !important;
-}
-section[data-testid="stSidebar"] * {
-    color: white !important;
-}
-
-/* Chart Backgrounds */
-div[data-testid="stPlotlyChart"] {
-    background: white;
-    padding: 10px;
+    padding: 20px;
     border-radius: 14px;
-    box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+    border: 1px solid #e4e4e4;
+    box-shadow: 0px 4px 12px rgba(0,0,0,0.06);
 }
 
+div[data-testid="metric-container"] > label {
+    color: #34495e !important;
+    font-size: 0.92rem;
+}
+
+div[data-testid="metric-container"] > div {
+    color: #1976d2 !important;
+    font-weight: 700 !important;
+}
+
+/* CHART BLOCKS */
+.block-container {
+    padding-top: 1rem;
+}
+
+.css-1kyxreq, .css-1ws7g6d, .css-12w0qpk {
+    background: #ffffff !important;
+    padding: 20px !important;
+    border-radius: 15px;
+    border: 1px solid #e4e4e4;
+    box-shadow: 0px 3px 10px rgba(0,0,0,0.08);
+}
+
+/* BUTTONS */
+.stButton > button {
+    background: #1976d2;
+    color: white;
+    border-radius: 8px;
+    padding: 10px 22px;
+    font-weight: 600;
+    border: none;
+}
+
+.stButton > button:hover {
+    background: #145a96;
+    box-shadow: 0px 4px 10px rgba(0,0,0,0.15);
+}
+
+/* HIDE FOOTER */
+footer {visibility:hidden;}
 </style>
-""", unsafe_allow_html=True)
+"""
 
-# -----------------------------------------------------
-# Title
-# -----------------------------------------------------
-st.title("📦 E-Commerce Sales Dashboard")
+st.markdown(light_theme_css, unsafe_allow_html=True)
 
-# -----------------------------------------------------
-# Sidebar Filters
-# -----------------------------------------------------
-categories = sorted(df["category"].dropna().unique())
-statuses = sorted(df["status"].dropna().unique())
 
-selected_categories = st.sidebar.multiselect("Select Category:", categories, default=None)
-selected_status = st.sidebar.multiselect("Select Order Status:", statuses, default=None)
+# ==============================================
+# LOAD DATA
+# ==============================================
+@st.cache_data
+def load_data():
+    return pd.read_csv("Ecommerce_Sales_Cleaned_Final.csv", low_memory=False)
 
-# -----------------------------------------------------
-# Filter Data
-# -----------------------------------------------------
-dff = df.copy()
-if selected_categories:
-    dff = dff[dff["category"].isin(selected_categories)]
-if selected_status:
-    dff = dff[dff["status"].isin(selected_status)]
+df = load_data()
 
-# -----------------------------------------------------
-# KPIs
-# -----------------------------------------------------
-total_sales = dff["amount"].sum()
-total_profit = dff["profit"].sum()
-avg_profit = dff["profit"].mean()
-total_orders = len(dff)
+st.title("📊 Ecommerce Sales Dashboard (Light Theme)")
 
-st.markdown("### Key Performance Indicators")
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Total Sales", f"₹{total_sales:,.0f}")
-col2.metric("Total Profit", f"₹{total_profit:,.0f}")
-col3.metric("Average Profit", f"₹{avg_profit:,.0f}")
-col4.metric("Total Orders", f"{total_orders:,}")
 
-# -----------------------------------------------------
-# Monthly Sales Trend
-# -----------------------------------------------------
-monthly_sales = dff.groupby(dff["date"].dt.to_period("M"))["amount"].sum().reset_index()
-monthly_sales["date"] = monthly_sales["date"].dt.to_timestamp()
-fig_trend = px.line(
-    monthly_sales,
-    x="date",
-    y="amount",
-    title="📈 Monthly Sales Trend",
-    markers=True,
-    color_discrete_sequence=["#27ae60"]
+# ==============================================
+# FILTERS
+# ==============================================
+st.sidebar.header("🔎 Filters")
+
+categories = st.sidebar.multiselect(
+    "Select Category",
+    options=df["Category"].unique(),
+    default=df["Category"].unique()
 )
-st.plotly_chart(fig_trend, use_container_width=True)
 
-# -----------------------------------------------------
-# Top Categories
-# -----------------------------------------------------
-top_categories = (
-    dff.groupby("category", as_index=False)["amount"]
-    .sum()
-    .sort_values("amount", ascending=False)
-    .head(10)
+states = st.sidebar.multiselect(
+    "Select State",
+    options=df["State"].unique(),
+    default=df["State"].unique()
 )
-fig_cat = px.bar(
-    top_categories,
-    x="category",
-    y="amount",
-    title="🏷️ Top 10 Categories by Sales",
-    color="amount",
-    color_continuous_scale="Agsunset"
-)
-st.plotly_chart(fig_cat, use_container_width=True)
 
-# -----------------------------------------------------
-# Expense vs Profit
-# -----------------------------------------------------
-fig_ep = px.scatter(
-    dff,
-    x="expance",
-    y="profit",
-    color="category",
-    size="amount",
-    hover_name="order id",
-    title="💸 Expense vs Profit Distribution",
-    color_continuous_scale="Viridis"
-)
-st.plotly_chart(fig_ep, use_container_width=True)
+df_filtered = df[df["Category"].isin(categories) & df["State"].isin(states)]
 
-# -----------------------------------------------------
-# Top 10 Products by Sales
-# -----------------------------------------------------
-if "style" in df.columns:
-    top_products = (
-        dff.groupby("style", as_index=False)["amount"]
-        .sum()
-        .sort_values("amount", ascending=False)
-        .head(10)
-    )
-    fig_products = px.bar(
-        top_products,
-        x="style",
-        y="amount",
-        title="🛒 Top 10 Products by Sales",
-        color="amount",
-        color_continuous_scale="Blues"
-    )
-    st.plotly_chart(fig_products, use_container_width=True)
+
+# ==============================================
+# KPI METRICS
+# ==============================================
+col1, col2, col3 = st.columns(3)
+
+col1.metric("Total Sales", f"${int(df_filtered['Amount'].sum()):,}")
+col2.metric("Total Orders", f"{df_filtered.shape[0]:,}")
+col3.metric("Avg Order Value", f"${df_filtered['Amount'].mean():.2f}")
+
+
+# ==============================================
+# SALES BY CATEGORY
+# ============================================
